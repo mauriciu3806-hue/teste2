@@ -1,0 +1,84 @@
+-- Anti-Bring Local Script
+-- Coloque em StarterPlayerScripts ou StarterCharacterScripts
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local savedPosition = nil
+local enabled = true
+
+-- Salva a posição atual do personagem
+local function savePosition()
+    local character = LocalPlayer.Character
+    if character then
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            savedPosition = hrp.CFrame
+        end
+    end
+end
+
+-- Restaura o personagem para a posição salva
+local function restorePosition()
+    local character = LocalPlayer.Character
+    if character then
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character:FindFirstChild("Humanoid")
+        if hrp and humanoid and humanoid.Health > 0 then
+            hrp.CFrame = savedPosition
+        end
+    end
+end
+
+-- Detecta teleporte indesejado (bring)
+local lastPosition = nil
+local THRESHOLD = 50 -- distância em studs para considerar um "bring"
+
+RunService.Heartbeat:Connect(function()
+    if not enabled then return end
+
+    local character = LocalPlayer.Character
+    if not character then return end
+
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local currentPos = hrp.Position
+
+    if lastPosition then
+        local distance = (currentPos - lastPosition).Magnitude
+
+        if distance > THRESHOLD then
+            -- Detectou teleporte brusco, restaura posição
+            if savedPosition then
+                restorePosition()
+                warn("[Anti-Bring] Bring detectado e bloqueado!")
+            end
+        else
+            -- Atualiza posição salva normalmente
+            savedPosition = hrp.CFrame
+        end
+    end
+
+    lastPosition = currentPos
+end)
+
+-- Inicializa quando o personagem spawna
+LocalPlayer.CharacterAdded:Connect(function(character)
+    character:WaitForChild("HumanoidRootPart")
+    task.wait(1)
+    savePosition()
+    lastPosition = character.HumanoidRootPart.Position
+end)
+
+-- Inicialização inicial
+if LocalPlayer.Character then
+    savePosition()
+    local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        lastPosition = hrp.Position
+    end
+end
+
+print("[Anti-Bring] Ativado! Threshold: " .. THRESHOLD .. " studs")
